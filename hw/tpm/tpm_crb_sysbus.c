@@ -36,6 +36,7 @@ struct TPMCRBStateSysBus {
     TPMCRBState state;
     uint64_t baseaddr;
     uint64_t size;
+    uint64_t ppi_baseaddr;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(TPMCRBStateSysBus, TPM_CRB_SYSBUS)
@@ -75,17 +76,57 @@ static const Property tpm_crb_sysbus_properties[] = {
                        baseaddr, TPM_CRB_ADDR_BASE),
     DEFINE_PROP_UINT64("x-size", TPMCRBStateSysBus,
                        size, TPM_CRB_ADDR_SIZE),
+    DEFINE_PROP_BOOL("ppi", TPMCRBStateSysBus, state.ppi_enabled, true),
+    DEFINE_PROP_UINT64("x-ppi-baseaddr", TPMCRBStateSysBus,
+                       ppi_baseaddr, 0),
+};
+
+/* Dvara: PPI region as plain MMIO (not a RAM mapping) so HVF can run it. */
+static uint64_t tpm_crb_sysbus_ppi_read(void *opaque, hwaddr addr,
+                                        unsigned size)
+{
+    uint8_t *buf = opaque;
+    uint64_t val = 0;
+
+    memcpy(&val, buf + addr, size);
+    return le64_to_cpu(val);
+}
+
+static void tpm_crb_sysbus_ppi_write(void *opaque, hwaddr addr,
+                                     uint64_t val, unsigned size)
+{
+    uint8_t *buf = opaque;
+
+    val = cpu_to_le64(val);
+    memcpy(buf + addr, &val, size);
+}
+
+static const MemoryRegionOps tpm_crb_sysbus_ppi_ops = {
+    .read = tpm_crb_sysbus_ppi_read,
+    .write = tpm_crb_sysbus_ppi_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 8 },
+    .impl = { .min_access_size = 1, .max_access_size = 8 },
 };
 
 static void tpm_crb_sysbus_initfn(Object *obj)
 {
     TPMCRBStateSysBus *s = TPM_CRB_SYSBUS(obj);
 
+    bool ppi = s->state.ppi_enabled;
+
+    s->state.ppi_enabled = false;
     tpm_crb_init_memory(obj, &s->state, NULL);
+    s->state.ppi_enabled = ppi;
 
     vmstate_register_ram(&s->state.mmio, DEVICE(obj));
 
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->state.mmio);
+
+    s->state.ppi.buf = g_malloc0(TPM_PPI_ADDR_SIZE);
+    memory_region_init_io(&s->state.ppi.ram, obj, &tpm_crb_sysbus_ppi_ops,
+                          s->state.ppi.buf, "tpm-ppi", TPM_PPI_ADDR_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->state.ppi.ram);
 }
 
 static void tpm_crb_sysbus_reset(DeviceState *dev)
@@ -119,7 +160,8 @@ static void build_tpm_crb_sysbus_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
     TPMCRBStateSysBus *s = TPM_CRB_SYSBUS(adev);
 
-    tpm_crb_build_aml(TPM_IF(adev), scope, s->baseaddr, s->size, false);
+    tpm_crb_build_aml_at(TPM_IF(adev), scope, s->baseaddr, s->size,
+                         s->state.ppi_enabled ? s->ppi_baseaddr : 0);
 }
 
 static void tpm_crb_sysbus_class_init(ObjectClass *klass, void *data)

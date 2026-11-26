@@ -146,7 +146,7 @@ if spice.found()
   if quartzcore.found()
     spice_core_ss.add(quartzcore)
   endif
-  if metal.found()
+  if metal.found() and opengl.found()
     spice_core_ss.add(metal)
     spice_core_ss.add(files('spice-display-metal.m'))
   endif

@@ -22,6 +22,11 @@
 
 void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
 {
+    tpm_build_ppi_acpi_at(tpm, dev, TPM_PPI_ADDR_BASE);
+}
+
+void tpm_build_ppi_acpi_at(TPMIf *tpm, Aml *dev, uint64_t base)
+{
     Aml *method, *field, *ifctx, *ifctx2, *ifctx3, *func_mask,
         *not_implemented, *pak, *tpm2, *tpm3, *pprm, *pprq, *zero, *one;
 
@@ -40,7 +45,7 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
      */
     aml_append(dev,
                aml_operation_region("TPP2", AML_SYSTEM_MEMORY,
-                                    aml_int(TPM_PPI_ADDR_BASE + 0x100),
+                                    aml_int(base + 0x100),
                                     0x5A));
     field = aml_field("TPP2", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PPIN", 8));
@@ -56,7 +61,7 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
     aml_append(dev,
                aml_operation_region(
                    "TPP3", AML_SYSTEM_MEMORY,
-                   aml_int(TPM_PPI_ADDR_BASE +
+                   aml_int(base +
                            0x15a /* movv, docs/specs/tpm.rst */),
                            0x1));
     field = aml_field("TPP3", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
@@ -78,7 +83,7 @@ void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev)
 
         aml_append(method,
             aml_operation_region("TPP1", AML_SYSTEM_MEMORY,
-                aml_add(aml_int(TPM_PPI_ADDR_BASE), op, NULL), 0x1));
+                aml_add(aml_int(base), op, NULL), 0x1));
         field = aml_field("TPP1", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
         aml_append(field, aml_named_field("TPPF", 8));
         aml_append(method, field);

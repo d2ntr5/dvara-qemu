@@ -252,6 +252,7 @@ REG32(CRB_DATA_BUFFER, 0x80)
 #define TPM_I2C_INT_ENABLE_MASK   0x0
 
 void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev);
+void tpm_build_ppi_acpi_at(TPMIf *tpm, Aml *dev, uint64_t base);
 
 #endif /* CONFIG_TPM */
 

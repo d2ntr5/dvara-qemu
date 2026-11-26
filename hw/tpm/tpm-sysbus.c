@@ -44,4 +44,12 @@ void tpm_sysbus_plug(TPMIf *tpmif, Object *pbus, hwaddr pbus_base)
                              tpm_base, &error_abort);
     object_property_set_uint(OBJECT(sbdev), "x-size",
                              tpm_size, &error_abort);
+
+    if (object_property_find(OBJECT(sbdev), "x-ppi-baseaddr")) {
+        hwaddr ppi_base = platform_bus_get_mmio_addr(pbusdev, sbdev, 1);
+        if (ppi_base != -1) {
+            object_property_set_uint(OBJECT(sbdev), "x-ppi-baseaddr",
+                                     ppi_base + pbus_base, &error_abort);
+        }
+    }
 }

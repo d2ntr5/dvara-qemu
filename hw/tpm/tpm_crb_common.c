@@ -247,6 +247,13 @@ void tpm_crb_mem_load(TPMCRBState *s, const uint32_t *saved_regs,
 void tpm_crb_build_aml(TPMIf *ti, Aml *scope, uint32_t baseaddr, uint32_t size,
                        bool build_ppi)
 {
+    tpm_crb_build_aml_at(ti, scope, baseaddr, size,
+                         build_ppi ? TPM_PPI_ADDR_BASE : 0);
+}
+
+void tpm_crb_build_aml_at(TPMIf *ti, Aml *scope, uint32_t baseaddr,
+                          uint32_t size, uint64_t ppi_base)
+{
     Aml *dev, *crs;
 
     dev = aml_device("TPM");
@@ -257,8 +264,8 @@ void tpm_crb_build_aml(TPMIf *ti, Aml *scope, uint32_t baseaddr, uint32_t size,
     crs = aml_resource_template();
     aml_append(crs, aml_memory32_fixed(baseaddr, size, AML_READ_WRITE));
     aml_append(dev, aml_name_decl("_CRS", crs));
-    if (build_ppi) {
-        tpm_build_ppi_acpi(ti, dev);
+    if (ppi_base) {
+        tpm_build_ppi_acpi_at(ti, dev, ppi_base);
     }
     aml_append(scope, dev);
 }
